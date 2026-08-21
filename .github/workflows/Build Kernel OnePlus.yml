@@ -187,11 +187,6 @@ on:
         description: "是否尝试补丁LRNG(Linux随机数生成器)？//Attempt to patch LRNG (Linux Random Number Generator)?"
         required: true
         default: false
-      HZ_1000:
-        type: boolean
-        description: "是否启用1000Hz内核时钟频率？//Enable 1000Hz kernel timer frequency?"
-        required: true
-        default: false
       MM_SHRINKER:
         type: boolean
         description: "是否添加内存利用补丁(THP Shrinker)？//Add memory utilization patch (THP Shrinker)?"
@@ -200,7 +195,7 @@ on:
 
 jobs:
   build:
-    name: ${{ github.event.inputs.FAST_BUILD == 'true' && ' [FAST]' || '' }}${{ contains(github.event.inputs.FILE, '_aosp') && ' [AOSP]' || '' }}${{ github.event.inputs.KPM == 'KPM' && ' [KPM]' || github.event.inputs.KPM == 'KPN' && ' [KPN]' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && ' [BBG]' || '' }}${{ github.event.inputs.SCHED_HMBIRD == 'true' && ' [HMBIRD]' || '' }}${{ github.event.inputs.DROID_SPACES == 'true' && ' [DS]' || '' }}${{ startsWith(github.event.inputs.ZRAM, '1/') && ' [ZRAM]' || '' }}${{ github.event.inputs.RE_KERNEL == 'true' && ' [REKER]' || '' }}${{ github.event.inputs.LZ4_UPDATE == 'true' && ' [LZ4UPD]' || '' }}${{ github.event.inputs.PREEMPT_VOLUNTARY == 'true' && ' [PREEMPT_VOL]' || '' }}${{ github.event.inputs.LRNG == 'true' && ' [LRNG]' || '' }}${{ github.event.inputs.HZ_1000 == 'true' && ' [1000Hz]' || '' }}${{ github.event.inputs.MM_SHRINKER == 'true' && ' [MM]' || '' }}For ${{ github.event.inputs.FILE }} ${{ github.event.inputs.SUFFIX }}
+    name: ${{ github.event.inputs.FAST_BUILD == 'true' && ' [FAST]' || '' }}${{ contains(github.event.inputs.FILE, '_aosp') && ' [AOSP]' || '' }}${{ github.event.inputs.KPM == 'KPM' && ' [KPM]' || github.event.inputs.KPM == 'KPN' && ' [KPN]' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && ' [BBG]' || '' }}${{ github.event.inputs.SCHED_HMBIRD == 'true' && ' [HMBIRD]' || '' }}${{ github.event.inputs.DROID_SPACES == 'true' && ' [DS]' || '' }}${{ startsWith(github.event.inputs.ZRAM, '1/') && ' [ZRAM]' || '' }}${{ github.event.inputs.RE_KERNEL == 'true' && ' [REKER]' || '' }}${{ github.event.inputs.LZ4_UPDATE == 'true' && ' [LZ4UPD]' || '' }}${{ github.event.inputs.PREEMPT_VOLUNTARY == 'true' && ' [PREEMPT_VOL]' || '' }}${{ github.event.inputs.LRNG == 'true' && ' [LRNG]' || '' }}${{ github.event.inputs.MM_SHRINKER == 'true' && ' [MM]' || '' }}For ${{ github.event.inputs.FILE }} ${{ github.event.inputs.SUFFIX }}
     runs-on: ubuntu-latest
     env:
       CCACHE_COMPILERCHECK: "none"
@@ -372,7 +367,6 @@ jobs:
           echo "Selected LZ4_UPDATE: ${{ github.event.inputs.LZ4_UPDATE }}"
           echo "Selected PREEMPT_VOLUNTARY: ${{ github.event.inputs.PREEMPT_VOLUNTARY }}"
           echo "Selected LRNG: ${{ github.event.inputs.LRNG }}"
-          echo "Selected HZ_1000: ${{ github.event.inputs.HZ_1000 }}"
           echo "Selected MM_SHRINKER: ${{ github.event.inputs.MM_SHRINKER }}"
           echo "Custom BUILD_TIME: $BUILD_TIME"
           echo -n "BUILD_TIME Unicode: "
@@ -1238,15 +1232,6 @@ jobs:
             set_config "CONFIG_PREEMPT=n"
             set_config "CONFIG_PREEMPT_NONE=n"
             set_config "CONFIG_PREEMPT_RT=n"
-          fi
-
-          # 1000Hz内核时钟频率配置
-          if [ "${{ github.event.inputs.HZ_1000 }}" = "true" ]; then
-            echo "启用1000Hz内核时钟频率"
-            set_config "CONFIG_HZ_1000=y"
-            set_config "CONFIG_HZ=1000"
-            set_config "CONFIG_HZ_250=n"
-            set_config "CONFIG_HZ_300=n"
           fi
 
           # 构建依赖项调整及优化

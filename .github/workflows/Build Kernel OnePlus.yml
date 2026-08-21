@@ -197,10 +197,15 @@ on:
         description: "是否启用1000Hz内核时钟频率？//Enable 1000Hz kernel timer frequency?"
         required: true
         default: false
+      MM_SHRINKER:
+        type: boolean
+        description: "是否添加内存利用补丁(THP Shrinker)？//Add memory utilization patch (THP Shrinker)?"
+        required: true
+        default: false
 
 jobs:
   build:
-    name: ${{ github.event.inputs.FAST_BUILD == 'true' && ' [FAST]' || '' }}${{ contains(github.event.inputs.FILE, '_aosp') && ' [AOSP]' || '' }}${{ github.event.inputs.KPM == 'KPM' && ' [KPM]' || github.event.inputs.KPM == 'KPN' && ' [KPN]' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && ' [BBG]' || '' }}${{ github.event.inputs.SCHED_HMBIRD == 'true' && ' [HMBIRD]' || '' }}${{ github.event.inputs.DROID_SPACES == 'true' && ' [DS]' || '' }}${{ startsWith(github.event.inputs.ZRAM, '1/') && ' [ZRAM]' || '' }}${{ github.event.inputs.RE_KERNEL == 'true' && ' [REKER]' || '' }}${{ github.event.inputs.LZ4_UPDATE == 'true' && ' [LZ4UPD]' || '' }}${{ github.event.inputs.PREEMPT_VOLUNTARY == 'true' && ' [PREEMPT_VOL]' || '' }}${{ github.event.inputs.LRNG == 'true' && ' [LRNG]' || '' }}${{ github.event.inputs.PREEMPT_RT == 'true' && ' [RT]' || '' }}${{ github.event.inputs.HZ_1000 == 'true' && ' [1000Hz]' || '' }}For ${{ github.event.inputs.FILE }} ${{ github.event.inputs.SUFFIX }}
+    name: ${{ github.event.inputs.FAST_BUILD == 'true' && ' [FAST]' || '' }}${{ contains(github.event.inputs.FILE, '_aosp') && ' [AOSP]' || '' }}${{ github.event.inputs.KPM == 'KPM' && ' [KPM]' || github.event.inputs.KPM == 'KPN' && ' [KPN]' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && ' [BBG]' || '' }}${{ github.event.inputs.SCHED_HMBIRD == 'true' && ' [HMBIRD]' || '' }}${{ github.event.inputs.DROID_SPACES == 'true' && ' [DS]' || '' }}${{ startsWith(github.event.inputs.ZRAM, '1/') && ' [ZRAM]' || '' }}${{ github.event.inputs.RE_KERNEL == 'true' && ' [REKER]' || '' }}${{ github.event.inputs.LZ4_UPDATE == 'true' && ' [LZ4UPD]' || '' }}${{ github.event.inputs.PREEMPT_VOLUNTARY == 'true' && ' [PREEMPT_VOL]' || '' }}${{ github.event.inputs.LRNG == 'true' && ' [LRNG]' || '' }}${{ github.event.inputs.PREEMPT_RT == 'true' && ' [RT]' || '' }}${{ github.event.inputs.HZ_1000 == 'true' && ' [1000Hz]' || '' }}${{ github.event.inputs.MM_SHRINKER == 'true' && ' [MM]' || '' }}For ${{ github.event.inputs.FILE }} ${{ github.event.inputs.SUFFIX }}
     runs-on: ubuntu-latest
     env:
       CCACHE_COMPILERCHECK: "none"
@@ -374,6 +379,7 @@ jobs:
           echo "Selected LRNG: ${{ github.event.inputs.LRNG }}"
           echo "Selected PREEMPT_RT: ${{ github.event.inputs.PREEMPT_RT }}"
           echo "Selected HZ_1000: ${{ github.event.inputs.HZ_1000 }}"
+          echo "Selected MM_SHRINKER: ${{ github.event.inputs.MM_SHRINKER }}"
           echo "Custom BUILD_TIME: $BUILD_TIME"
           echo -n "BUILD_TIME Unicode: "
           CHECK_TEXT="$BUILD_TIME" python3 "$GITHUB_WORKSPACE/kernel_workspace/Action-Build/scripts/check_unicode_format.py" --mode build_time
@@ -922,6 +928,50 @@ jobs:
             patch -p1 < "$PATCH_FILE"
             echo "✅ RT 补丁应用完成"
           fi
+
+          source $REJ_CHECKER
+          check_rejects .
+
+      - name: Apply MM_SHRINKER
+        if: ${{ github.event.inputs.MM_SHRINKER == 'true' }}
+        run: |
+          PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/Action-Build/patches/mm"
+          cd kernel_workspace/kernel_platform/common
+
+          echo "检查内核版本: $VERSIONLEVEL.$PATCHLEVEL.$SUBLEVEL"
+          echo "KMI: $KMI"
+
+          # 尝试匹配补丁文件
+          PATCH_FILE=""
+          if [ -f "${PATCH_DIR}/${VERSIONLEVEL}.${PATCHLEVEL}_mm.patch" ]; then
+            PATCH_FILE="${PATCH_DIR}/${VERSIONLEVEL}.${PATCHLEVEL}_mm.patch"
+          elif [ -f "${PATCH_DIR}/${VERSIONLEVEL}_mm.patch" ]; then
+            PATCH_FILE="${PATCH_DIR}/${VERSIONLEVEL}_mm.patch"
+          fi
+
+          if [ -z "$PATCH_FILE" ]; then
+            echo "❌ 未找到适用于内核 $VERSIONLEVEL.$PATCHLEVEL 的内存利用补丁(THP Shrinker)"
+            echo "可用的补丁版本:"
+            ls "${PATCH_DIR}/"
+            exit 20
+          fi
+
+          echo "✅ 找到内存利用补丁: $PATCH_FILE"
+
+          # Dry-Run 检查
+          echo "执行 Dry-Run 检查..."
+          if patch -p1 --dry-run < "$PATCH_FILE" 2>&1; then
+            echo "✅ Dry-Run 成功，可以应用补丁"
+          else
+            echo "❌ Dry-Run 失败，无法应用内存利用补丁"
+            echo "请检查内核版本是否兼容"
+            exit 21
+          fi
+
+          # 实际应用补丁
+          echo "应用内存利用补丁..."
+          patch -p1 < "$PATCH_FILE"
+          echo "✅ 内存利用补丁应用完成"
 
           source $REJ_CHECKER
           check_rejects .

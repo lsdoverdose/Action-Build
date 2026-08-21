@@ -890,6 +890,7 @@ jobs:
 
           # 检查内核原生是否支持RT
           echo "检查内核配置是否支持PREEMPT_RT..."
+          CONFIG_FILE=./arch/arm64/configs/gki_defconfig
           if grep -q "CONFIG_PREEMPT_RT" "$CONFIG_FILE" 2>/dev/null; then
             echo "✅ 内核原生支持PREEMPT_RT"
             echo "无需补丁，直接启用配置"
